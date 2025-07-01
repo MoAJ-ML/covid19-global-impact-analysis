@@ -6,11 +6,17 @@ This project analyzes the global impact of COVID-19 using the Johns Hopkins Univ
 - `visualization/`: All output plots
 - `merged_covid_dataset.csv`: Cleaned and merged dataset
 - Main analysis script (to be created)
-
 ## Setup
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/MoAJ-ML/covid19-global-impact-analysis.git]
+   cd covid19-global-impact-analysis
 ```
-pip install -r requirements.txt
+2. pip install -r requirements.txt
 ```
+Run the analysis:
+bash
+python covid_analysis.py
 
 ## Data Sources
 - Johns Hopkins COVID-19 Data
