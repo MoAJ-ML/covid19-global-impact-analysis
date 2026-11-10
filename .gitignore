@@ -1,3 +1,6 @@
 # Ignore data and outputs
 *.csv
 *.xlsx
+__pycache__/
+*.pyc
+*.partial
