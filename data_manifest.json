@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Johns Hopkins Confirmed",
+    "url": "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",
+    "path": "time_series_covid19_confirmed_global.csv",
+    "sha256": "e6234a59eec4359d2577358b5220e1a7e3da74c162913cdb7d882db1413f98c2",
+    "retrieved_or_verified_utc": "2026-11-10T13:07:23.900160+00:00"
+  },
+  {
+    "name": "Johns Hopkins Deaths",
+    "url": "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv",
+    "path": "time_series_covid19_deaths_global.csv",
+    "sha256": "4e87757a3e059c45650a1e1856614f8e339ee3c70653c378a7ba6f7b0ee8c72e",
+    "retrieved_or_verified_utc": "2026-11-10T13:07:23.904331+00:00"
+  },
+  {
+    "name": "Johns Hopkins Recovered",
+    "url": "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv",
+    "path": "time_series_covid19_recovered_global.csv",
+    "sha256": "381bb7527a52114d3f07b40c25dc8aba0b6283aa535e97cba97152ce3cbdb526",
+    "retrieved_or_verified_utc": "2026-11-10T13:07:23.908327+00:00"
+  },
+  {
+    "name": "OWID",
+    "url": "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv",
+    "path": "owid-covid-data.csv",
+    "sha256": "8473d0f0fdf962e1ffbd5b85b18726fc96a49bab109e271186c339725a12b10c",
+    "retrieved_or_verified_utc": "2026-11-10T13:07:24.143670+00:00"
+  }
+]

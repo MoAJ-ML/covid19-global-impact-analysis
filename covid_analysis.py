@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import requests
+import hashlib
+import json
+from datetime import datetime, timezone
 
 # Set visualization output directory
 VIS_DIR = 'visualization'
@@ -12,11 +15,15 @@ os.makedirs(VIS_DIR, exist_ok=True)
 # -------------------------------
 # 1. DATA ACQUISITION & LOADING
 # -------------------------------
-# TODO: Download or load datasets: Johns Hopkins, OWID, Oxford, Population
-# Example URLs (update as needed):
-# Johns Hopkins: https://github.com/CSSEGISandData/COVID-19
-# OWID: https://covid.ourworldindata.org/data/owid-covid-data.csv
-# Oxford: https://github.com/OxCGRT/covid-policy-tracker
+# Johns Hopkins cumulative series and OWID population, vaccination, and policy fields.
+
+DATASETS = [
+    ('Johns Hopkins Confirmed', 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv', 'time_series_covid19_confirmed_global.csv'),
+    ('Johns Hopkins Deaths', 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv', 'time_series_covid19_deaths_global.csv'),
+    ('Johns Hopkins Recovered', 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv', 'time_series_covid19_recovered_global.csv'),
+    ('OWID', 'https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv', 'owid-covid-data.csv'),
+]
+
 
 def download_data():
     """
@@ -24,48 +31,29 @@ def download_data():
     Downloads:
     - Johns Hopkins CSSE time series (confirmed, deaths, recovered)
     - Our World in Data (OWID) COVID-19 dataset
-    - Oxford COVID-19 Government Response Tracker (OxCGRT)
+    - OWID population, vaccination, and reported policy fields
     """
-    datasets = [
-        {
-            'name': 'Johns Hopkins Confirmed',
-            'url': 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv',
-            'path': 'time_series_covid19_confirmed_global.csv'
-        },
-        {
-            'name': 'Johns Hopkins Deaths',
-            'url': 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv',
-            'path': 'time_series_covid19_deaths_global.csv'
-        },
-        {
-            'name': 'Johns Hopkins Recovered',
-            'url': 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv',
-            'path': 'time_series_covid19_recovered_global.csv'
-        },
-        {
-            'name': 'OWID',
-            'url': 'https://covid.ourworldindata.org/data/owid-covid-data.csv',
-            'path': 'owid-covid-data.csv'
-        },
-        {
-            'name': 'Oxford Policy',
-            'url': 'https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest.csv',
-            'path': 'OxCGRT_latest.csv'
-        }
-    ]
-    for ds in datasets:
-        if not os.path.exists(ds['path']):
-            print(f"Downloading {ds['name']} dataset...")
+    manifest = []
+    for name, url, path in DATASETS:
+        if not os.path.exists(path):
             try:
-                r = requests.get(ds['url'], timeout=60)
-                r.raise_for_status()
-                with open(ds['path'], 'wb') as f:
-                    f.write(r.content)
-                print(f"Downloaded {ds['path']}.")
-            except Exception as e:
-                print(f"Failed to download {ds['name']}: {e}")
-        else:
-            print(f"{ds['path']} already exists. Skipping download.")
+                response = requests.get(url, timeout=60)
+                response.raise_for_status()
+            except requests.RequestException as exc:
+                raise RuntimeError(f'Required {name} download failed from {url}: {exc}') from exc
+            if not response.content:
+                raise ValueError(f'{name} download was empty')
+            temporary_path = path + '.partial'
+            with open(temporary_path, 'wb') as target:
+                target.write(response.content)
+            os.replace(temporary_path, path)
+        with open(path, 'rb') as source:
+            digest = hashlib.file_digest(source, 'sha256').hexdigest()
+        manifest.append({'name': name, 'url': url, 'path': path,
+                         'sha256': digest, 'retrieved_or_verified_utc': datetime.now(timezone.utc).isoformat()})
+    with open('data_manifest.json', 'w') as target:
+        json.dump(manifest, target, indent=2)
+    return manifest
 
 # -------------------------------
 # 2. DATA CLEANING & MERGING
@@ -92,7 +80,7 @@ def load_and_merge_data():
             var_name='date', value_name=value_name
         )
         # Aggregate by country and date
-        df_long = df_long.groupby(['Country/Region', 'date'], as_index=False)[value_name].sum()
+        df_long = df_long.groupby(['Country/Region', 'date'], as_index=False)[value_name].sum(min_count=1)
         return df_long
 
     df_conf_long = melt_jhu(df_conf, 'confirmed')
@@ -102,7 +90,7 @@ def load_and_merge_data():
     # Merge JHU datasets
     df_jhu = df_conf_long.merge(df_deaths_long, on=['Country/Region', 'date'], how='outer')
     df_jhu = df_jhu.merge(df_recov_long, on=['Country/Region', 'date'], how='outer')
-    df_jhu['date'] = pd.to_datetime(df_jhu['date'], errors='coerce')
+    df_jhu['date'] = pd.to_datetime(df_jhu['date'], format='%m/%d/%y', errors='coerce')
     df_jhu = df_jhu.rename(columns={'Country/Region': 'location'})
 
     # Load OWID dataset
@@ -119,16 +107,16 @@ def load_and_merge_data():
     )
 
     # Fill population from OWID
-    merged['population'] = merged['population'].fillna(method='ffill').fillna(method='bfill')
+    merged = merged.sort_values(['location', 'date'])
+    merged['population'] = merged.groupby('location')['population'].ffill().fillna(
+        merged.groupby('location')['population'].bfill())
     # Normalize per 100k population
     for col in ['confirmed', 'deaths', 'recovered', 'new_cases', 'new_deaths', 'new_vaccinations']:
         if col in merged.columns:
             merged[f'{col}_per100k'] = merged[col] / merged['population'] * 1e5
 
-    # Handle missing values
-    merged = merged.sort_values(['location', 'date'])
-    merged = merged.groupby('location').apply(lambda group: group.fillna(method='ffill')).reset_index(drop=True)
-    merged = merged.fillna(0)
+    # Keep unavailable daily cases, deaths, vaccinations, and policy values
+    # missing. Forward-filling them would manufacture observations.
 
     # Save merged dataset
     merged.to_csv('merged_covid_dataset.csv', index=False)
@@ -170,25 +158,21 @@ def plot_cases_by_country(df):
 
 
 def plot_deaths_vs_vaccination(df):
-    """
-    Enhanced: Compare deaths vs vaccination rates per capita (latest available date, top 20 countries).
-    - Horizontal bar plot with clear color distinction.
-    - Larger figure, bigger fonts, separated legends, gridlines.
-    - Saves plot as visualization/deaths_vs_vaccination.png
-    """
+    """Plot two differently scaled measures on separate axes without implying causality."""
     latest = df.groupby('location')['date'].max().reset_index()
     merged_latest = df.merge(latest, on=['location', 'date'], how='inner')
     merged_latest = merged_latest[merged_latest['population'] > 1e6]
+    merged_latest = merged_latest.dropna(subset=['deaths_per100k', 'people_fully_vaccinated_per_hundred'])
     merged_latest = merged_latest.sort_values('deaths_per100k', ascending=False).head(20)
-    plt.figure(figsize=(14, 10))
-    bar1 = plt.barh(merged_latest['location'], merged_latest['deaths_per100k'], color='tomato', alpha=0.8, label='Deaths per 100k')
-    bar2 = plt.barh(merged_latest['location'], merged_latest['people_fully_vaccinated_per_hundred'], color='mediumseagreen', alpha=0.6, label='Fully Vaccinated (%)')
-    plt.title('Deaths vs Vaccination Rates per Capita (Top 20 Impacted Countries)', fontsize=18)
-    plt.xlabel('Value', fontsize=14)
-    plt.ylabel('Country', fontsize=14)
+    plt.figure(figsize=(14, 8))
+    plt.scatter(merged_latest['people_fully_vaccinated_per_hundred'], merged_latest['deaths_per100k'])
+    for row in merged_latest.itertuples():
+        plt.annotate(row.location, (row.people_fully_vaccinated_per_hundred, row.deaths_per100k), fontsize=8)
+    plt.title('Historical vaccination coverage and cumulative deaths: descriptive only')
+    plt.xlabel('Fully vaccinated (% of population)')
+    plt.ylabel('Cumulative reported deaths per 100,000')
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-    plt.legend(loc='lower right', fontsize=12, frameon=True)
     plt.grid(True, axis='x', linestyle='--', alpha=0.7)
     plt.tight_layout(rect=[0, 0, 1, 0.97])
     plt.savefig(os.path.join(VIS_DIR, 'deaths_vs_vaccination.png'), bbox_inches='tight', dpi=180)
@@ -211,9 +195,8 @@ def plot_policy_vs_outcomes(df):
         country_df = df[df['location'] == country].copy()
         # Fill missing values
         for col in ['stringency_index', 'new_cases_per100k', 'new_deaths_per100k']:
-            if col not in country_df or country_df[col].isnull().all():
-                country_df[col] = 0
-            country_df[col] = country_df[col].fillna(0)
+            if col not in country_df:
+                country_df[col] = np.nan
         # Rolling averages
         country_df['cases_7d'] = country_df['new_cases_per100k'].rolling(7, min_periods=1).mean()
         country_df['deaths_7d'] = country_df['new_deaths_per100k'].rolling(7, min_periods=1).mean()
@@ -250,7 +233,7 @@ def plot_heatmap_correlation(df):
     - Saves plot as visualization/heatmap_correlation.png
     """
     corr_cols = [
-        'confirmed_per100k', 'deaths_per100k', 'recovered_per100k',
+        'confirmed_per100k', 'deaths_per100k',
         'new_cases_per100k', 'new_deaths_per100k',
         'people_fully_vaccinated_per_hundred', 'stringency_index', 'population'
     ]

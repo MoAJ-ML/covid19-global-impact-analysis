@@ -1,36 +1,7 @@
-# COVID-19 Global Impact Analysis – Key Insights
+# Historical COVID-19 data: interpretation limits
 
-## 1. Spread Dynamics (Time Series)
-- Top impacted countries (by total cases) show distinct waves of infection and mortality.
-- Deaths per 100k closely follow case surges, with a lag of 2–4 weeks.
-- Some countries exhibit faster recovery rates, likely linked to early interventions and healthcare capacity.
+The analysis joins Johns Hopkins cumulative reported cases, deaths and recovered series with OWID population, vaccination, and stringency fields by country name and date. The exact input URLs, hashes, and retrieval or verification time for the 10 November 2026 rerun are in `data_manifest.json`. The generated figures are descriptive views of that snapshot.
 
-## 2. Deaths vs Vaccination
-- Countries with higher vaccination rates per capita generally show lower deaths per 100k in recent periods.
-- Outliers exist, often due to late vaccine rollouts or high-risk populations.
-- Vaccine equity remains a challenge, with some high-death countries having lower vaccination coverage.
+Country names and reporting windows do not align perfectly, and recovered-case reporting is incomplete. Missing vaccination or policy values remain missing. The vaccination/deaths chart compares two differently scaled historical measures; it does not estimate vaccine effect. The policy and correlation charts do not adjust for testing, epidemic timing, age structure, reporting, or other confounders. Neither chart can establish that a policy or vaccination level caused an outcome.
 
-## 3. Policy Response vs Outcomes
-- Stringency index increases (lockdowns, mask mandates) often precede or coincide with reductions in new cases/deaths.
-- Countries that implemented strong policies early saw faster declines in case rates.
-- The relationship is not perfect—other factors (healthcare, population density, compliance) also play a role.
-
-## 4. Correlation Analysis
-- Strong positive correlation between confirmed cases and deaths per 100k.
-- Negative correlation between vaccination rates and deaths per 100k.
-- Stringency index correlates with reduction in new cases, but with diminishing returns at very high levels.
-
-## 5. Public Health Insights
-- Early, strong policy interventions are associated with better outcomes.
-- High vaccination coverage is critical for reducing mortality.
-- Ongoing monitoring and adaptive policy are needed for future waves.
-
----
-
-**All visualizations are saved in the `visualization/` folder.**
-- `cases_by_country_over_time.png`: Top countries, cases/deaths over time
-- `deaths_vs_vaccination.png`: Deaths vs vaccination rates
-- `policy_vs_outcomes.png`: Policy stringency vs outcomes
-- `heatmap_correlation.png`: Correlation matrix
-
-For further analysis, see `merged_covid_dataset.csv` for the cleaned, merged dataset.
+No clinical or public-health recommendation should be made from these plots. Recheck current publisher data and methods for any decision use.
