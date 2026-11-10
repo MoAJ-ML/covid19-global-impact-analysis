@@ -5,10 +5,43 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pandas as pd
+
 import covid_analysis
 
 
 class DownloadTests(unittest.TestCase):
+    def test_missing_daily_measurements_are_not_forward_filled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            previous = os.getcwd()
+            os.chdir(tmp)
+            try:
+                common = {'Province/State': [None], 'Country/Region': ['Example'],
+                          'Lat': [0], 'Long': [0]}
+                for name, values in [('confirmed', [10, None]),
+                                     ('deaths', [1, 2]), ('recovered', [0, 1])]:
+                    pd.DataFrame({**common, '1/1/20': [values[0]],
+                                  '1/2/20': [values[1]]}).to_csv(
+                        f'time_series_covid19_{name}_global.csv', index=False)
+                pd.DataFrame({
+                    'location': ['Example', 'Example'],
+                    'date': ['2020-01-01', '2020-01-02'],
+                    'population': [1000, None],
+                    'new_cases': [10, None],
+                    'new_deaths': [1, None],
+                    'new_vaccinations': [5, None],
+                    'stringency_index': [40, None],
+                }).to_csv('owid-covid-data.csv', index=False)
+                result = covid_analysis.load_and_merge_data().sort_values('date')
+                latest = result.iloc[-1]
+                self.assertEqual(latest['population'], 1000)
+                for column in ['confirmed', 'confirmed_per100k', 'new_cases',
+                               'new_cases_per100k', 'new_deaths',
+                               'new_vaccinations', 'stringency_index']:
+                    self.assertTrue(pd.isna(latest[column]), column)
+            finally:
+                os.chdir(previous)
+
     def test_records_hash_and_fails_on_download_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             previous = os.getcwd()

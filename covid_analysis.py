@@ -80,7 +80,7 @@ def load_and_merge_data():
             var_name='date', value_name=value_name
         )
         # Aggregate by country and date
-        df_long = df_long.groupby(['Country/Region', 'date'], as_index=False)[value_name].sum()
+        df_long = df_long.groupby(['Country/Region', 'date'], as_index=False)[value_name].sum(min_count=1)
         return df_long
 
     df_conf_long = melt_jhu(df_conf, 'confirmed')
@@ -115,11 +115,8 @@ def load_and_merge_data():
         if col in merged.columns:
             merged[f'{col}_per100k'] = merged[col] / merged['population'] * 1e5
 
-    # Handle missing values
-    merged = merged.sort_values(['location', 'date'])
-    value_columns = merged.columns.difference(['location', 'date'])
-    merged[value_columns] = merged.groupby('location')[value_columns].ffill()
-    # Keep unavailable vaccination and policy values missing rather than inventing zeroes.
+    # Keep unavailable daily cases, deaths, vaccinations, and policy values
+    # missing. Forward-filling them would manufacture observations.
 
     # Save merged dataset
     merged.to_csv('merged_covid_dataset.csv', index=False)
